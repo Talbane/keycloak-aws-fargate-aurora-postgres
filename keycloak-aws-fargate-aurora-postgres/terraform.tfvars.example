@@ -1,0 +1,110 @@
+aws_region   = "us-east-1"
+name_prefix  = "myorg-keycloak"
+environment  = "poc"
+
+vpc_id = "vpc-0123456789abcdef0"
+
+private_subnet_ids = [
+  "subnet-PRIVATE_AZ1",
+  "subnet-PRIVATE_AZ2",
+]
+
+# Only needed when/if the external ALB is internet-facing.
+public_subnet_ids = [
+  "subnet-PUBLIC_AZ1",
+  "subnet-PUBLIC_AZ2",
+]
+
+# Existing ACM certificate. It must cover keycloak_hostname.
+acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/REPLACE_ME"
+keycloak_hostname   = "sso.example.edu"
+
+# GitHub Actions overrides this on deployments with e.g. 26.7.2-<commit>.
+keycloak_image_tag = "26.7.2-manual"
+keycloak_version   = "26.7.2"
+
+# Explicit enterprise networks routed to the internal ALB (including TGW/on-prem CIDRs).
+internal_alb_ingress_cidrs = [
+  "10.0.0.0/8",
+]
+
+# Initial posture: internal only.
+enable_external_alb = false
+
+# Later split-DNS example:
+# enable_external_alb = true
+# external_alb_internal = false
+# external_alb_ingress_cidrs = ["0.0.0.0/0"]
+# enable_external_waf = true
+# external_restrict_public_paths = true
+# Then configure InfoBlox views:
+#   internal view: sso.example.edu CNAME -> internal_alb_dns_name
+#   external view: sso.example.edu CNAME -> external_alb_dns_name
+
+# Managed Aurora PostgreSQL by default.
+create_database = true
+# db_engine_version         = "17.7" # Aurora PostgreSQL 17.7 LTS.
+# db_instance_class         = "db.r7g.large"
+# db_cluster_instance_count = 2       # Set to 1 for a lower-cost POC; keep 2+ for DB-instance HA.
+# db_kms_key_arn     = "arn:aws:kms:..."
+# secrets_kms_key_arn = "arn:aws:kms:..."
+# ecr_kms_key_arn    = "arn:aws:kms:..."
+
+# DBA-managed DB alternative:
+# create_database                = false
+# external_db_host               = "keycloak-db.internal.example.edu"
+# external_db_name               = "keycloak"
+# external_db_secret_arn         = "arn:aws:secretsmanager:us-east-1:123456789012:secret:keycloak/db-..." # JSON: username, password, ca_pem
+# external_db_tls_verify         = true
+# external_db_security_group_id  = "sg-0123456789abcdef0"
+# The DBA must also add DB ingress TCP/5432 FROM output ecs_task_security_group_id.
+
+# Recommended if private subnets do not have centralized HTTPS egress through TGW/firewall/NAT.
+# This keeps ECR/Logs/Secrets Manager traffic private.
+create_vpc_endpoints = false
+# private_route_table_ids = ["rtb-PRIVATE_AZ1", "rtb-PRIVATE_AZ2"]
+
+# If not using VPC endpoints, scope 443 to your actual egress proxy/firewall ranges,
+# existing VPC endpoint SGs, or required external service CIDRs. Avoid 0.0.0.0/0 unless necessary.
+https_egress_cidrs = []
+https_egress_security_group_ids = []
+https_egress_prefix_list_ids = []
+
+# Bootstrap secret is created with no value by Terraform. The deployment workflow seeds
+# it from protected GitHub Environment secrets on first deployment.
+inject_bootstrap_admin_secret = true
+
+# Keycloak JDBC pool per task. 20 tasks connections x autoscaling_max_capacity 6 =
+# up to 120 application pool connections, before DB/system overhead. Tune together.
+db_pool_size = 20
+enable_db_secret_change_redeploy = true
+
+# Example least-privilege non-HTTPS dependencies (leave empty unless required):
+additional_egress_cidr_rules = []
+# additional_egress_cidr_rules = [
+#   { description = "LDAPS to enterprise directory", protocol = "tcp", from_port = 636, to_port = 636, cidr_ipv4 = "10.20.30.40/32" },
+#   { description = "SMTP submission", protocol = "tcp", from_port = 587, to_port = 587, cidr_ipv4 = "10.20.40.50/32" },
+# ]
+additional_egress_security_group_rules = []
+
+# Production defaults / sizing starting point.
+ecs_cpu       = 1024
+ecs_memory    = 2048
+desired_count = 2
+autoscaling_min_capacity = 2
+autoscaling_max_capacity = 6
+
+# Remove inbound X-Forwarded-For to prevent client-supplied XFF spoofing.
+alb_xff_header_processing_mode = "remove"
+
+# Current AWS recommended resilient TLS 1.3/1.2 hybrid post-quantum policy.
+alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09"
+
+tags = {
+  Application = "keycloak"
+  Environment = "poc"
+  ManagedBy   = "terraform"
+  Owner       = "identity-team"
+  CostCenter  = "REPLACE_ME"
+  DataClass   = "REPLACE_ME"
+}

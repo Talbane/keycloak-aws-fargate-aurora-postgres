@@ -1,0 +1,34 @@
+aws_region  = "us-east-1"
+name_prefix = "myorg-keycloak"
+environment = "poc"
+
+github_deploy_oidc_subjects = [
+  "repo:MY_ORG/MY_REPO:environment:keycloak-prod",
+]
+
+github_plan_oidc_subjects = [
+  "repo:MY_ORG/MY_REPO:environment:keycloak-plan",
+]
+
+create_github_oidc_provider       = false
+existing_github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+
+terraform_state_bucket = "my-secure-terraform-state-bucket"
+terraform_state_key    = "identity/keycloak/poc.tfstate"
+# terraform_state_kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/..."
+# permissions_boundary_arn    = "arn:aws:iam::123456789012:policy/EnterpriseBoundary"
+
+# When create_database=false and enable_db_secret_change_redeploy=true, scope metadata reads to the exact DBA secret ARN:
+# database_secret_arns_for_metadata_read = [
+#   "arn:aws:secretsmanager:us-east-1:123456789012:secret:keycloak/db-abc123",
+# ]
+
+# If the main stack uses CMK KMS keys, list the exact ARNs here so
+# the deployment role can create AWS-service grants/use them.
+# deployment_kms_key_arns = [
+#   "arn:aws:kms:us-east-1:123456789012:key/REPLACE_ME",
+# ]
+
+# If the main stack points bootstrap_secret_arn at an existing secret with a different name,
+# provide its exact ARN here so the deploy workflow can seed it without broad Secrets Manager access.
+# bootstrap_secret_arn_for_value_write = "arn:aws:secretsmanager:us-east-1:123456789012:secret:identity/keycloak-bootstrap-abc123"
